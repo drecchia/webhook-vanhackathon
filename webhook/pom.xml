@@ -72,6 +72,12 @@
 			<artifactId>activemq-kahadb-store</artifactId>
 			<version>5.14.1</version>
 		</dependency>
+		<!-- https://mvnrepository.com/artifact/org.fusesource.leveldbjni/leveldbjni -->
+		<dependency>
+			<groupId>org.fusesource.leveldbjni</groupId>
+			<artifactId>leveldbjni-all</artifactId>
+			<version>1.8</version>
+		</dependency>
 
 
 		<!-- logging -->

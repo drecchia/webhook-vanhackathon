@@ -1,27 +1,56 @@
+Webhooks Vanhackathon
+=====================
+	
+# Company
+	HootSuite
 
-Project: Webhooks
-Company: HootSuite
+# Project description
+	Write a webhook calling service that will reliably POST data to destination URLs in the order POST message requests are received.
 
-Swagger Documentation: http://localhost/api
+# Swagger Documentation
+	http://localhost/api
 
-Technologies:
-  java, camel, jms, activemq, redis, restlet
+# Technologies
+* java
+* camel
+* jms
+* activemq
+* redis
+* restlet
 
-Running:
-  mvn camel:run
+# Running
+  	mvn camel:run
 
-Scaling:
-  REST - Multiples instances of REST routes sending data to JMS.
-  JMS - Network of brokers and replicated levelDB storage.
-  WORKER - Multiples instances connected to one or more JMS servers. 
-  REDIS - Cluster of Redis nodes.
+# Scaling
+* REST - Multiples instances of REST routes sending POST requests to JMS endpoint's.
+* JMS - Network of brokers and replicated levelDB storage.
+* WORKER - Multiples instances connected to one or more JMS servers. 
+* REDIS - Cluster of Redis nodes.
    
+# Solutions
+	Messages not sent within 24 hours can be deleted.
+	=> Solved using JMSExpiration
+	Message ordering to a destination should be preserved, even when there are pending message retries for that destination
+	=> ActiveMQ queue preserve the order, failed messages will me managed inside a transaction context. ( http://activemq.apache.org/message-groups.html ) 
+	Messages that failed to send should retried 3 or more times before they are deleted.
+	=> Retries managed inside the JMS transaction context ( also the retry interval ).
+	How can I scale out this service across multiple servers while preserving per-destination ordering ?
+	=> Using activeMQ Message Group
+	Is your API using the standard RESTful conventions for the 4 operations ?
+	=> yes
 
+# Considerations
+	How well does your service support concurrency for multiple destinations while preserving per-destination ordering?
+	=> ActiveMQ has native support for this scenario using Message Groups.
+    How secure is this? 
+    => Requests are susceptible to man in the middle attack ( sniffer and injection ) if traffic is not encrypted.
+    Should you require HTTPS urls?
+    => Definitely.
+    Should the content be signed with something like an HMAC?
+    => HMAC are secure standards widely used on others scenarios like JWT and can help improve security signing the requests. So yes, it would be good to implement HMAC signature.
+    Should any url be allowed (e.g. one that has or resolves to a private IP address?)
+    =>	No, private urls can be used to attack/explore the network where this service is hosted.
 
-
-As more and more integration takes place between SaaS providers, other SaaS providers and their customers, webhooks have become an invaluable way of sharing events.  These events simplify data-synchronization and extensibility.
-
-Project: Write a webhook calling service that will reliably POST data to destination URLs in the order POST message requests are received.
 
 The service should support the following remote requests via REST
 
@@ -33,35 +62,9 @@ The service should support the following remote requests via REST
 Behaviour:
 
     If the destination URL is not responding (e.g. the servier is down) or returns a non-200 response, your service should resend the message at a later time
-    Messages not sent within 24 hours can be be deleted
-    Messages that failed to send should retried 3 or more times before they are deleted
-    Message ordering to a destination should be preserved, even when there are pending message retries for that destination
-
-Feel free to add more metadata to the destination (id, URL,) if it helps your implementation
-
-To Consider:
-
-    is your API using the standard REST-ful conventions for the 4 operations?
-    how can I scale out this service across multiple servers while preserving per-destination ordering?
-    how well does your service support concurrency for multiple destinations while preserving per-destination ordering?
-    how secure is this? should you require HTTPS urls? should the content be signed with something like an HMAC?  Should any url be allowed (e.g. one that has or resolves to a private IP address?)
+    
 
 
 
 
-
-Camel Router Spring Project
-===========================
-
-To build this project use
-
-    mvn install
-
-To run this project with Maven use
-
-    mvn camel:run
-
-For more help see the Apache Camel documentation
-
-    http://camel.apache.org/
 
