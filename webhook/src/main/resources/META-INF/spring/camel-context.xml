@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <beans xmlns="http://www.springframework.org/schema/beans"
-	xmlns:camel="http://camel.apache.org/schema/spring"
-	xmlns:amq="http://activemq.apache.org/schema/core"
+	xmlns:p="http://www.springframework.org/schema/p"
+	xmlns:camel="http://camel.apache.org/schema/spring" xmlns:amq="http://activemq.apache.org/schema/core"
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	xsi:schemaLocation="
        http://www.springframework.org/schema/beans 
@@ -30,18 +30,28 @@
 		</amq:persistenceAdapter>
 	</amq:broker>
 	
+	<!-- lets create an Redis Pool -->
+	<bean id="jedisConnFactory"
+		class="org.springframework.data.redis.connection.jedis.JedisConnectionFactory"
+		p:use-pool="true" />
+
+	<!-- redis template definition -->
+	<bean id="redisTemplate" class="org.springframework.data.redis.core.RedisTemplate"
+		p:connection-factory-ref="jedisConnFactory" />
+		
 	<bean id="idempotentRepository" class="org.apache.camel.component.redis.processor.idempotent.RedisIdempotentRepository">
+	  <constructor-arg ref="redisTemplate"/>
 	  <constructor-arg value="test-repo"/>
 	</bean>
 
-	<!-- JMS ConnectionFactory to use, configuring the embedded broker using XML -->
-	<!-- <amq:connectionFactory id="jmsFactory" brokerURL="vm://localhost" /> -->
-	
-	<camel:camelContext xmlns="http://camel.apache.org/schema/spring" trace="false">
+	<camel:camelContext xmlns="http://camel.apache.org/schema/spring"
+		trace="false">
 
-		<camel:restConfiguration component="restlet" host="127.0.0.1" port="8080" enableCORS="true" contextPath="/" bindingMode="auto" apiContextPath="/api">
-			<camel:apiProperty key="api.title" value="WebHook Documentation"/>
-			<camel:apiProperty key="cors" value="true"/>
+		<camel:restConfiguration component="restlet"
+			host="127.0.0.1" port="8080" enableCORS="true" contextPath="/"
+			bindingMode="auto" apiContextPath="/api">
+			<camel:apiProperty key="api.title" value="WebHook Documentation" />
+			<camel:apiProperty key="cors" value="true" />
 		</camel:restConfiguration>
 
 		<camel:rest consumes="application/json" produces="application/json">
@@ -71,20 +81,20 @@
 				<camel:simple>${body}</camel:simple>
 			</camel:setHeader>
 			<camel:setHeader headerName="JMSExpiration">
-				<camel:simple>86400</camel:simple>
+				<camel:constant>86400</camel:constant>
 			</camel:setHeader>
 			<camel:setHeader headerName="JMSDeliveryMode">
-				<camel:simple>1</camel:simple>
+				<camel:constant>1</camel:constant>
 			</camel:setHeader>
 			<camel:log message="Forwarding request" />
-			<camel:wireTap uri="direct:incrementRequests"/>
+			<camel:wireTap uri="direct:incrementRequests" />
 			<camel:to uri="activemq:queue:request" />
 		</camel:route>
-		
+
 		<camel:route>
 			<camel:from uri="direct:incrementRequests" />
 			<camel:setHeader headerName="CamelRedis.Key">
-				<camel:simple>destinations</camel:simple>
+				<camel:constant>destinations</camel:constant>
 			</camel:setHeader>
 			<camel:setHeader headerName="CamelRedis.Field">
 				<camel:simple>${id}</camel:simple>
@@ -92,14 +102,14 @@
 			<camel:setHeader headerName="CamelRedis.Value">
 				<camel:simple>1</camel:simple>
 			</camel:setHeader>
-			<camel:to uri="redis://localhost:6379?command=HINCRBY"/>
+			<camel:to uri="redis://localhost:6379?command=HINCRBY" />
 		</camel:route>
-		
+
 		<camel:route>
 			<camel:from uri="direct:setDestination" />
 			<camel:log message="Creating a new destination" />
 			<camel:setHeader headerName="CamelRedis.Key">
-				<camel:simple>destinations</camel:simple>
+				<camel:constant>destinations</camel:constant>
 			</camel:setHeader>
 			<camel:setHeader headerName="CamelRedis.Field">
 				<camel:simple>${id}</camel:simple>
@@ -107,40 +117,47 @@
 			<camel:setHeader headerName="CamelRedis.Value">
 				<camel:simple>${body}</camel:simple>
 			</camel:setHeader>
-			<camel:to uri="redis://localhost:6379?command=HSET"/>
+			<camel:to uri="redis://localhost:6379?command=HSET" />
 		</camel:route>
-		
+
 		<camel:route>
 			<camel:from uri="direct:updateDestination" />
 			<camel:log message="Updating an existent destination" />
 		</camel:route>
-		
+
 		<camel:route>
 			<camel:from uri="direct:delDestination" />
 			<camel:log message="Deleting a destination" />
 			<camel:setHeader headerName="CamelRedis.Key">
-				<camel:simple>destinations</camel:simple>
+				<camel:constant>destinations</camel:constant>
 			</camel:setHeader>
 			<camel:setHeader headerName="CamelRedis.Field">
 				<camel:simple>${id}</camel:simple>
 			</camel:setHeader>
-			<camel:to uri="redis://localhost:6379?command=HDEL"/>
+			<camel:to uri="redis://localhost:6379?command=HDEL" />
 		</camel:route>
-		
+
 		<camel:route>
 			<camel:from uri="direct:listDestinations" />
 			<camel:log message="Listing all destinations" />
+			<camel:setHeader headerName="CamelRedis.Key">
+				<camel:simple>destinations</camel:simple>
+			</camel:setHeader>
+			<camel:to uri="redis://localhost:6379?command=HGETALL" />
 		</camel:route>
-		
+
 		<camel:route>
 			<camel:from uri="direct:getDestination" />
 			<camel:log message="Listing an specific destination" />
 			<camel:setHeader headerName="CamelRedis.Key">
 				<camel:simple>destinations</camel:simple>
 			</camel:setHeader>
-			<camel:to uri="redis://localhost:6379?command=HGETALL"/>
+			<camel:setHeader headerName="CamelRedis.Field">
+				<camel:simple>${id}</camel:simple>
+			</camel:setHeader>
+			<camel:to uri="redis://localhost:6379?command=HGET" />
 		</camel:route>
-		
+
 	</camel:camelContext>
 
 </beans>
