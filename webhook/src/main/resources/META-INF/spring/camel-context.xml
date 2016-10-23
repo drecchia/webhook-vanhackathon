@@ -51,7 +51,7 @@
 			host="127.0.0.1" port="8080" enableCORS="true" contextPath="/"
 			bindingMode="auto" apiContextPath="/api">
 			<camel:apiProperty key="api.title" value="WebHook Documentation" />
-			<camel:apiProperty key="cors" value="true" />
+			<camel:apiProperty key="cors" value="false" />
 		</camel:restConfiguration>
 
 		<camel:rest consumes="application/json" produces="application/json">
@@ -74,11 +74,16 @@
 				<camel:to uri="direct:proxy" />
 			</camel:post>
 		</camel:rest>
+		
+		<camel:route id="deliveryRemoteData">
+			<camel:from uri="activemq:queue:request" />
+			<camel:to uri="http://${body.endpoint}"/>
+		</camel:route>
 
-		<camel:route>
+		<camel:route id="sendRequestsToJMS">
 			<camel:from uri="direct:proxy" />
 			<camel:setHeader headerName="JMSXGroupID">
-				<camel:simple>${body}</camel:simple>
+				<camel:simple>${id}</camel:simple>
 			</camel:setHeader>
 			<camel:setHeader headerName="JMSExpiration">
 				<camel:constant>86400</camel:constant>
@@ -91,7 +96,7 @@
 			<camel:to uri="activemq:queue:request" />
 		</camel:route>
 
-		<camel:route>
+		<camel:route id="incrementRequestsReceived">
 			<camel:from uri="direct:incrementRequests" />
 			<camel:setHeader headerName="CamelRedis.Key">
 				<camel:constant>destinations</camel:constant>
@@ -102,10 +107,10 @@
 			<camel:setHeader headerName="CamelRedis.Value">
 				<camel:simple>1</camel:simple>
 			</camel:setHeader>
-			<camel:to uri="redis://localhost:6379?command=HINCRBY" />
+			<camel:to uri="spring-redis://localhost:6379?command=HINCRBY" />
 		</camel:route>
 
-		<camel:route>
+		<camel:route id="createNewDestination">
 			<camel:from uri="direct:setDestination" />
 			<camel:log message="Creating a new destination" />
 			<camel:setHeader headerName="CamelRedis.Key">
@@ -117,15 +122,25 @@
 			<camel:setHeader headerName="CamelRedis.Value">
 				<camel:simple>${body}</camel:simple>
 			</camel:setHeader>
-			<camel:to uri="redis://localhost:6379?command=HSET" />
+			<camel:to uri="spring-redis://localhost:6379?command=HSET" />
 		</camel:route>
 
-		<camel:route>
+		<camel:route id="updateExistentDestination">
 			<camel:from uri="direct:updateDestination" />
 			<camel:log message="Updating an existent destination" />
+			<camel:setHeader headerName="CamelRedis.Key">
+				<camel:constant>destinations</camel:constant>
+			</camel:setHeader>
+			<camel:setHeader headerName="CamelRedis.Field">
+				<camel:simple>${id}</camel:simple>
+			</camel:setHeader>
+			<camel:setHeader headerName="CamelRedis.Value">
+				<camel:simple>${body}</camel:simple>
+			</camel:setHeader>
+			<camel:to uri="spring-redis://localhost:6379?command=HSET" />
 		</camel:route>
 
-		<camel:route>
+		<camel:route id="deleteExistentDestination">
 			<camel:from uri="direct:delDestination" />
 			<camel:log message="Deleting a destination" />
 			<camel:setHeader headerName="CamelRedis.Key">
@@ -134,19 +149,19 @@
 			<camel:setHeader headerName="CamelRedis.Field">
 				<camel:simple>${id}</camel:simple>
 			</camel:setHeader>
-			<camel:to uri="redis://localhost:6379?command=HDEL" />
+			<camel:to uri="spring-redis://localhost:6379?command=HDEL" />
 		</camel:route>
 
-		<camel:route>
+		<camel:route id="listAllDestinations">
 			<camel:from uri="direct:listDestinations" />
 			<camel:log message="Listing all destinations" />
 			<camel:setHeader headerName="CamelRedis.Key">
 				<camel:simple>destinations</camel:simple>
 			</camel:setHeader>
-			<camel:to uri="redis://localhost:6379?command=HGETALL" />
+			<camel:to uri="spring-redis://localhost:6379?command=HGETALL" />
 		</camel:route>
 
-		<camel:route>
+		<camel:route id="listSingleDestination">
 			<camel:from uri="direct:getDestination" />
 			<camel:log message="Listing an specific destination" />
 			<camel:setHeader headerName="CamelRedis.Key">
@@ -155,7 +170,7 @@
 			<camel:setHeader headerName="CamelRedis.Field">
 				<camel:simple>${id}</camel:simple>
 			</camel:setHeader>
-			<camel:to uri="redis://localhost:6379?command=HGET" />
+			<camel:to uri="spring-redis://localhost:6379?command=HGET" />
 		</camel:route>
 
 	</camel:camelContext>

@@ -7,7 +7,7 @@ Webhooks Vanhackathon
 # Project description
 	Write a webhook calling service that will reliably POST data to destination URLs in the order POST message requests are received.
 
-# Swagger Documentation
+# Swagger Endpoint Documentation
 	http://localhost/api
 
 # Technologies
@@ -19,7 +19,9 @@ Webhooks Vanhackathon
 * restlet
 
 # Running
-  	mvn camel:run
+1. Start a local redis instance.
+2. Enter project root folder
+3. Run "mvn camel:run"
 
 # Scaling
 * REST - Multiples instances of REST routes sending POST requests to JMS endpoint's.
