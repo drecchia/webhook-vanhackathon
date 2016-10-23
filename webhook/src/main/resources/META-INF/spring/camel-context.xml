@@ -77,7 +77,8 @@
 		
 		<camel:route id="deliveryRemoteData">
 			<camel:from uri="activemq:queue:request" />
-			<camel:to uri="http://${body.endpoint}"/>
+			<camel:log message="Delivering remote data" />
+			<!-- <camel:to uri="http4://${body.endpoint}"/> -->
 		</camel:route>
 
 		<camel:route id="sendRequestsToJMS">
