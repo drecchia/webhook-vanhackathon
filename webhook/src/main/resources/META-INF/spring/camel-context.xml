@@ -10,6 +10,8 @@
        http://camel.apache.org/schema/spring/camel-spring-2.17.3.xsd
        http://activemq.apache.org/schema/core
        http://activemq.apache.org/schema/core/activemq-core-5.14.0.xsd">
+       
+    <bean id="uuidGenerator" class="br.com.drecchia.webhook.UuidGenerator" />
 
 	<!-- lets create an embedded ActiveMQ Broker -->
 	<amq:broker useJmx="false" persistent="true"
@@ -114,11 +116,12 @@
 		<camel:route id="createNewDestination">
 			<camel:from uri="direct:setDestination" />
 			<camel:log message="Creating a new destination" />
+			<camel:process ref="uuidGenerator"/>
 			<camel:setHeader headerName="CamelRedis.Key">
 				<camel:constant>destinations</camel:constant>
 			</camel:setHeader>
 			<camel:setHeader headerName="CamelRedis.Field">
-				<camel:simple>${id}</camel:simple>
+				<camel:simple>${header.uuid}</camel:simple>
 			</camel:setHeader>
 			<camel:setHeader headerName="CamelRedis.Value">
 				<camel:simple>${body}</camel:simple>
