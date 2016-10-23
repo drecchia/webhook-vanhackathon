@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:camel="http://camel.apache.org/schema/spring"
+	xmlns:amq="http://activemq.apache.org/schema/core"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="
+       http://www.springframework.org/schema/beans 
+       http://www.springframework.org/schema/beans/spring-beans.xsd
+       http://camel.apache.org/schema/spring
+       http://camel.apache.org/schema/spring/camel-spring-2.17.3.xsd
+       http://activemq.apache.org/schema/core
+       http://activemq.apache.org/schema/core/activemq-core-5.14.0.xsd">
+
+	<!-- lets create an embedded ActiveMQ Broker -->
+	<amq:broker useJmx="false" persistent="true"
+		schedulerSupport="true">
+		<amq:transportConnectors>
+			<amq:transportConnector uri="tcp://localhost:0" />
+		</amq:transportConnectors>
+		<amq:destinationPolicy>
+			<amq:policyMap>
+				<amq:policyEntries>
+					<amq:policyEntry queue=">"
+						timeBeforeDispatchStarts="200" />
+				</amq:policyEntries>
+			</amq:policyMap>
+		</amq:destinationPolicy>
+		<amq:persistenceAdapter>
+			<amq:levelDB directory="target/activemq-data" />
+		</amq:persistenceAdapter>
+	</amq:broker>
+
+	<!-- JMS ConnectionFactory to use, configuring the embedded broker using XML -->
+	<!-- <amq:connectionFactory id="jmsFactory" brokerURL="vm://localhost" /> -->
+	
+	<camel:camelContext xmlns="http://camel.apache.org/schema/spring" trace="false">
+
+		<camel:restConfiguration component="restlet" host="127.0.0.1" port="8080" enableCORS="true" contextPath="/" bindingMode="auto" apiContextPath="/api">
+			<camel:apiProperty key="api.title" value="WebHook Documentation"/>
+			<camel:apiProperty key="cors" value="true"/>
+		</camel:restConfiguration>
+
+		<camel:rest consumes="application/json" produces="application/json">
+			<camel:get uri="/destinations">
+				<camel:to uri="direct:listDestinations" />
+			</camel:get>
+			<camel:get uri="/destinations/{id}">
+				<camel:to uri="direct:getDestination" />
+			</camel:get>
+			<camel:post uri="/destinations/{id}">
+				<camel:to uri="direct:setDestination" />
+			</camel:post>
+			<camel:put uri="/destinations/{id}">
+				<camel:to uri="direct:updateDestination" />
+			</camel:put>
+			<camel:delete uri="/destinations/{id}">
+				<camel:to uri="direct:delDestination" />
+			</camel:delete>
+			<camel:post uri="/{id}">
+				<camel:to uri="direct:proxy" />
+			</camel:post>
+		</camel:rest>
+
+		<camel:route>
+			<camel:from uri="direct:proxy" />
+			<camel:setHeader headerName="JMSXGroupID">
+				<camel:simple>${body}</camel:simple>
+			</camel:setHeader>
+			<camel:setHeader headerName="JMSExpiration">
+				<camel:simple>86400</camel:simple>
+			</camel:setHeader>
+			<camel:setHeader headerName="JMSDeliveryMode">
+				<camel:simple>1</camel:simple>
+			</camel:setHeader>
+			<camel:log message="Forwarding request" />
+			<camel:to uri="activemq:queue:request" />
+		</camel:route>
+		
+	</camel:camelContext>
+
+</beans>
