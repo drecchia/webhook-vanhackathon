@@ -16,7 +16,7 @@ Webhooks Vanhackathon
 * jms
 * activemq
 * redis
-* restlet
+* jetty
 
 # Running
 1. Start a local redis instance.
